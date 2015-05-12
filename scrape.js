@@ -93,7 +93,9 @@ casper.fetchTopics = function(n) {
     return this.dumpTopics();
 }
 
+
 casper
     .start('https://groups.google.com/forum/#!forum/' + casper.cli.args[0])
+    .run(function() { this.echo("Scraping " + this.cli.args[0]) })
     .fetchTopics(casper.cli.args[1])
-    .run();
+    .then(function() { this.exit() });
