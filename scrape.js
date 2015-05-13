@@ -4,7 +4,8 @@ var fs     = require('fs');
 var utils  = require('utils');
 var casper = require('casper').create({
     verbose      : true,
-    logLevel     : 'warning',
+    logLevel     : 'error',
+    waitTimeout  : 15000,
     pageSettings : {
         loadImages  : false,
         loadPlugins : false,
@@ -14,22 +15,31 @@ var casper = require('casper').create({
     },
 });
 
+// Get command line args
+var group = casper.cli.args[0];
+var count = casper.cli.args[1];
+
 var lastTitle;
 casper.waitTopic = function(then) {
     return this
+        .wait(100)
         .waitFor(function() {
-            var title = this.getTitle();
-            if (title.match(/- Google Groups$/) && lastTitle != title) {
+            var title = this.fetchText("#t-t");
+            if (title && title != lastTitle) {
                 lastTitle = title;
                 return true;
             }
+            else if (title) {
+                return false;
+            }
+            else if (this.getTitle().match(group)) {
+               this.page.sendEvent("keypress", "j");
+               this.wait(2000);
+               this.page.sendEvent("keypress", "o");
+               this.wait(5000);
+               return false;
+            }
             else {
-                if (title.match(/elixir-lang-talk/)) {
-                    this.page.sendEvent("keypress", "j");
-                    this.wait(500);
-                    this.page.sendEvent("keypress", "o");
-                    this.wait(500);
-                }
                 return false;
             }
         })
@@ -50,11 +60,15 @@ casper.firstTopic = function(then) {
         .waitTopic(then);
 }
 
-var topics = [];
+var topics = {};
 casper.processTopic = function() {
-    topics.push({
-        title : this.fetchText('#t-t'),
-        url   : this.getCurrentUrl(),
+    var url   = this.getCurrentUrl();
+    var id    = url.match(/[^\/]+$/)[0];
+    var title = this.fetchText('#t-t');
+    topics[id] = {
+        id    : id,
+        url   : url,
+        title : title,
         posts : this.evaluate(function() {
             return __utils__
                 .findAll("#tm-tl > div")
@@ -66,7 +80,7 @@ casper.processTopic = function() {
                         i     : i,
                         user  : node.querySelector('._username').innerText,
                         date  : node.querySelector('.MV0LWFC-nb-Q.MV0LWFC-b-Cb').title,
-                        body  : node.querySelector('.MV0LWFC-fd-a').innerText,
+                        body  : node.querySelector('.MV0LWFC-nb-P').innerText,
                     };
                     var links = node.querySelectorAll('.MV0LWFC-fd-a a');
                     if (links) {
@@ -77,13 +91,13 @@ casper.processTopic = function() {
                     return post;
                 });
         }),
-    });
-    this.echo(this.fetchText('#t-t'));
+    };
+    this.then(function() { this.echo(title) });
     return this;
 }
 
 casper.dumpTopics = function() {
-    return this.then(function() { fs.write(casper.cli.args[1] + "-" + casper.cli.args[0] + ".json", JSON.stringify(topics, null, 2), 'w') });
+    return this.then(function() { fs.write(count + "-" + group + ".json", JSON.stringify(topics, null, 2), 'w') });
 }
 
 casper.fetchTopics = function(n) {
@@ -95,7 +109,7 @@ casper.fetchTopics = function(n) {
 
 
 casper
-    .start('https://groups.google.com/forum/#!forum/' + casper.cli.args[0])
-    .run(function() { this.echo("Scraping " + this.cli.args[0]) })
-    .fetchTopics(casper.cli.args[1])
+    .start('https://groups.google.com/forum/#!forum/' + group)
+    .run(function() { this.echo("Scraping " + group ) })
+    .fetchTopics(count)
     .then(function() { this.exit() });
