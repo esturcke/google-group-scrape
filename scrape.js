@@ -36,12 +36,12 @@ casper.waitTopic = function(then) {
                 return true;
             }
             else if (title) {
+                this.page.sendEvent("keypress", "j");
                 return false;
             }
-            else if (this.getTitle().match(group)) {
+            else if (this.exists('.MV0LWFC-fb-f')) {
                 this.page.sendEvent("keypress", "j");
                 this.page.sendEvent("keypress", "o");
-                lastTitle = "";
                 return false;
             }
             else {
@@ -109,7 +109,7 @@ casper.fetchTopics = function(n) {
     this.firstTopic(function() { this.processTopic() });
     for (i = 1; i < n; i++)
         this.nextTopic(function() { this.processTopic() });
-    return this.dumpTopics();
+    return this;
 }
 
 
@@ -117,4 +117,5 @@ casper
     .start('https://groups.google.com/forum/#!forum/' + group)
     .run(function() { this.echo("Scraping " + group ) })
     .fetchTopics(count)
+    .dumpTopics()
     .then(function() { this.exit() });
