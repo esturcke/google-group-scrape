@@ -19,6 +19,12 @@ var casper = require('casper').create({
 var group = casper.cli.args[0];
 var count = casper.cli.args[1];
 
+casper.thenPress = function(key) {
+    return this.then(function() {
+        this.page.sendEvent("keypress", key);
+    });
+};
+
 var lastTitle;
 casper.waitTopic = function(then) {
     return this
@@ -33,31 +39,30 @@ casper.waitTopic = function(then) {
                 return false;
             }
             else if (this.getTitle().match(group)) {
-               this.page.sendEvent("keypress", "j");
-               this.wait(2000);
-               this.page.sendEvent("keypress", "o");
-               this.wait(5000);
-               return false;
+                this.page.sendEvent("keypress", "j");
+                this.page.sendEvent("keypress", "o");
+                lastTitle = "";
+                return false;
             }
             else {
                 return false;
             }
         })
-        .wait(100, then);
+        .wait(100);
 }
 
 casper.nextTopic = function(then) {
     return this
-        .then(function() { this.page.sendEvent("keypress", "j") })
-        .waitTopic(then);
+        .thenPress("j")
+        .waitTopic()
+        .then(then);
 }
 
 casper.firstTopic = function(then) {
     return this
-        .then(function() {
-            this.page.sendEvent("keypress", "o");
-        })
-        .waitTopic(then);
+        .thenPress("o")
+        .waitTopic()
+        .then(then);
 }
 
 var topics = {};
